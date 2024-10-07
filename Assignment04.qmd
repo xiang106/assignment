@@ -1,0 +1,46 @@
+---
+title: "Assignment04"
+author: "Xiang Xiang and Weijing Zhong"
+format: html
+---
+
+### Data Source
+[IPUMS CURRENT POPULATION SURVEY](https://cps.ipums.org/cps/index.shtml).
+
+```{r}
+
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(ipumsr)
+
+ddi <- read_ipums_ddi("cps_00003.xml")
+data <- read_ipums_micro(ddi)
+
+glimpse(data)
+
+```
+
+\newpage
+
+```{r}
+
+```
+
+\newpage
+
+```{r}
+
+```
+
+\newpage
+
+```{r}
+
+```
+
+\newpage
+
+```{r}
+
+```
