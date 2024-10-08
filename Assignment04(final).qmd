@@ -1,0 +1,198 @@
+---
+title: "Assignment04"
+author: "Xiang Xiang and Weijing Zhong"
+format: html
+---
+
+### Data Source
+
+[IPUMS CURRENT POPULATION SURVEY](https://cps.ipums.org/cps/index.shtml).
+
+::: border
+:::
+
+### Introduction and Preparation
+
+This analysis dives into the dynamics of work hours, employment status, and income distribution within the U.S. labor market, revealing how factors like gender, age, and race shape people’s experiences. Using data from the IPUMS Current Population Survey (CPS) for 2024, we’ve created visualizations to bring these stories to life.
+
+We start by looking at gender differences in employment status, then shift to examining how work hours vary across racial groups and different ages. Finally, we explore how income levels are tied to weekly hours worked, showing how lower and higher-income groups differ in their work patterns. Through these visualizations, we aim to capture the complexity of labor market disparities in a straightforward yet impactful way.
+
+```{r}
+
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(ipumsr)
+
+ddi <- read_ipums_ddi("cps_00003.xml")
+data <- read_ipums_micro(ddi)
+
+glimpse(data)
+
+```
+
+::: border
+:::
+
+### Plot 1 Employment Status by Gender
+
+```{r}
+
+cps_2024 <- data %>%
+  filter(YEAR == 2024, !EMPSTAT %in% c(0, 1))
+
+cps_2024$SEX <- factor(cps_2024$SEX, levels = c(1, 2), labels = c("Male", "Female"))
+
+cps_2024$EMP_GROUP <- ifelse(cps_2024$EMPSTAT %in% c(10, 12), "Employed",
+                             ifelse(cps_2024$EMPSTAT %in% c(20, 21, 22), "Unemployed", "NILF"))
+
+cps_2024$EMP_GROUP <- factor(cps_2024$EMP_GROUP, levels = c("Employed", "Unemployed", "NILF"))
+
+ggplot(data = cps_2024, aes(x = EMP_GROUP, fill = SEX)) +
+  geom_bar(position = "dodge") +
+  scale_fill_manual(values = c("#66c2a5", "tan1"), name = "Gender") +
+  labs(
+    title = "Employment Status by Gender in 2024 April",
+    subtitle = "More males are employed or unemployed, females are more likely to be out of the labor force",
+    y = "Population",
+    x = NULL,
+    caption = "Source: IPUMS CPS Data"
+  ) +
+  theme_minimal()
+
+```
+
+The 1st chart displays employment status by gender for 2024, highlighting three categories: Employed, Unemployed and Not in Labor Force (NILF). The majority of both genders are employed, with slightly more males than females. A larger share of females falls into the NILF category, suggesting possible factors such as caregiving responsibilities impacting their labor market participation. The unemployment rates are low for both genders, indicating stable employment for those seeking work.
+
+::: border
+:::
+
+### Plot 2 Weekly Working Hours by Race Overtime
+
+```{r}
+
+data$RACE <- as.numeric(data$RACE)
+
+data$RACE_GROUP <- case_when(
+  data$RACE == 100 ~ "White",
+  data$RACE == 200 ~ "Black",
+  data$RACE == 300 ~ "American Indian/Alaskan Native",
+  data$RACE == 650 ~ "Asian or Pacific Islander",
+  data$RACE == 651 ~ "Asian or Pacific Islander",
+  data$RACE == 652 ~ "Asian or Pacific Islander",
+  data$RACE >= 801 & data$RACE <= 817 ~ "Two or More Races",
+  TRUE ~ "Other"
+)
+
+data_clean <- data %>%
+  filter(UHRSWORKT != 999 & UHRSWORKT != 997 & !is.na(UHRSWORKT)) %>%
+  select(YEAR, RACE_GROUP, UHRSWORKT)
+
+data_summary <- data_clean %>%
+  group_by(YEAR, RACE_GROUP) %>%
+  summarise(Average_Hours = mean(UHRSWORKT, na.rm = TRUE)) %>%
+  ungroup()
+
+ggplot(data = data_summary, aes(x = YEAR, y = Average_Hours, color = RACE_GROUP)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  labs(
+    title = "Average Weekly Hours Worked by Race Group from 2020 to 2024",
+    subtitle = "All Race Groups Work Around 40 Hours Per Week",
+    x = "Year",
+    y = "Average Weekly Hours Worked",
+    color = "Race Group",
+    caption = "Source: IPUMS CPS Data"
+  ) +
+  scale_x_continuous(breaks = seq(2020, 2024, 1)) +
+  theme_minimal()
+
+```
+
+The 2nd graph shows average weekly hours worked by racial groups from 2020 to 2024. Most groups maintain stable work hours around 38-40 per week, but the "Other" group shows a sharp rise in 2021 followed by a decline, dropping further in 2024. This trend suggests possible challenges in job access or economic participation for certain groups.
+
+::: border
+:::
+
+### Plot 3 Weekly Working Hours by Age
+
+```{r}
+
+data$AGE <- as.numeric(data$AGE)
+data$UHRSWORKT <- as.numeric(data$UHRSWORKT)
+
+data_clean <- data %>%
+  filter(YEAR == 2024, !is.na(AGE), !is.na(UHRSWORKT), UHRSWORKT != 997, UHRSWORKT != 999) %>%
+  select(AGE, UHRSWORKT)
+
+data_clean$Hours_Group <- cut(data_clean$UHRSWORKT,
+                              breaks = c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100),
+                              labels = c("0-10", "10-20", "20-30", "30-40", "40-50", "50-60", "60-70", "70-80", "80-90", "90-100"))
+
+data_summary <- data_clean %>%
+  group_by(AGE, Hours_Group) %>%
+  summarise(Count = n()) %>%
+  ungroup()
+
+ggplot(data = data_summary, aes(x = AGE, y = Hours_Group, fill = Count)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "#d4e157", high = "#2e7d32", name = "Sample Count") +
+  labs(
+    title = "Distribution of Weekly Hours Worked by Age Group",
+    subtitle = "Most individuals work 30-40 hours per week, with a concentration of full-time hours among ages 20-60",
+    x = "Age",
+    y = "Usual Weekly Hours Worked (Grouped)",
+    caption = "Source: IPUMS CPS Data"
+  ) +
+  theme_minimal()+
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+
+```
+
+The heatmap illustrates the distribution of usual weekly hours worked across various age groups in 2024. The y-axis categorizes weekly hours into grouped intervals, while the x-axis represents age. Darker shades indicate a higher concentration of individuals working a specific range of weekly hours, with the densest area observed in the 30-40 hours range, especially for those aged 20 to 60. This suggests that full-time work is prevalent among the prime working-age population, while both younger and older age groups have a more dispersed distribution in hours worked.
+
+::: border
+:::
+
+### Plot 4 Usual Hours Worked by Income Groups
+
+```{r}
+
+data_clean <- data %>%
+  mutate(IncomeGroup = case_when(
+    FAMINC %in% c(100:150, 200:232) ~ "Low Income",
+    FAMINC %in% c(310:560) ~ "Lower-Middle Income",
+    FAMINC %in% c(700:730, 740:830) ~ "Middle Income",
+    FAMINC %in% c(841, 842) ~ "High Income",
+    FAMINC == 843 ~ "Very High Income",
+    TRUE ~ NA_character_
+  ))
+
+data_clean <- data_clean %>%
+  filter(UHRSWORKT != 999 & UHRSWORKT != 997 & !is.na(UHRSWORKT), !is.na(IncomeGroup)) %>%
+  select(YEAR, RACE_GROUP, UHRSWORKT, IncomeGroup)
+
+data_clean$IncomeGroup <- factor(data_clean$IncomeGroup, 
+                                 levels = c("Low Income", "Lower-Middle Income", "Middle Income", 
+                                            "High Income", "Very High Income"))
+
+ggplot(data = data_clean, aes(x = UHRSWORKT, fill = IncomeGroup)) +
+  geom_density(alpha = 0.5, color = NA) +
+  labs(
+    title = "Distribution of Usual Hours Worked by Income Groups",
+    subtitle = "Most income groups show a high concentration of individuals working around 40 hours per week, with some variations in higher income groups.",
+    x = "Usual Weekly Hours Worked",
+    y = "Density",
+    fill = "Income Group",
+    caption = "Source: IPUMS CPS Data"
+  ) +
+  facet_wrap(~ IncomeGroup, scales = "fixed") +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey94"),
+    panel.grid.minor = element_blank()
+  )
+```
+
+The 4th visualization shows the distribution of usual weekly hours worked across different income groups. Each income group has a unique density distribution, with most individuals working close to 40 hours per week, especially in the Low and Lower-Middle Income groups. High and Very High Income groups display a narrower range of work hours, often clustered around standard full-time hours. This pattern suggests that lower-income groups might have more variability in work hours, which could reflect part-time or inconsistent work patterns.
